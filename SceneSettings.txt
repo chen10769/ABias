@@ -1,0 +1,12 @@
+a1a2ScaleX=1
+a1a2ScaleZ=1
+a1a2YDistance=1.83
+a1a2XPos=1.87
+b1b2XDistance=4.14
+b1b2ZPos=0
+cSize=0.8409
+pZPos=8
+gridCellSizeX=1
+gridCellSizeY=1
+gridSpacingX=1
+gridSpacingY=0.4
