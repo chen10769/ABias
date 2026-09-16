@@ -5,10 +5,11 @@ public class GuardController : MonoBehaviour
     private Animator animator;
     private Transform playerTransform; // 玩家位置参考
     public bool isShooting = false;
-    private bool isDead = false;
+    public bool isDead = false;
     
     public AudioSource guardAudio;
     public AudioClip shootClip;
+    public GameObject interactArea;
 
     void Start()
     {
@@ -22,6 +23,7 @@ public class GuardController : MonoBehaviour
         if (isShooting && !isDead)
         {
             FacePlayer();
+            DotProbeTask.instance.Damaged();
         }
     }
 
@@ -54,6 +56,21 @@ public class GuardController : MonoBehaviour
     public void SetDead(bool dead)
     {
         isDead = dead;
+    }
+    public void StartShooting()
+    {
+        if (!isShooting && !isDead)
+        {
+            animator.SetTrigger("shoot");
+            SetShooting(true);
+        }
+    }
+    public void ResetSelf()
+    {
+
+        animator.SetTrigger("reset");
+        isDead = false;
+        isShooting = false;
     }
 
     // 动画事件 - 在死亡动画结束时调用

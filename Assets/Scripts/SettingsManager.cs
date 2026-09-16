@@ -48,6 +48,9 @@ public static class SettingsManager
                 ["Dot_PerfectThreshold"] = "0.5",
                 ["Dot_GreatThreshold"] = "1",
 
+                ["Dot_HavePre"] = "1",
+                ["Dot_HavePost"] = "1",
+
 
                 // VisualSearch 默认设置
                 ["VS_IntervalMin"] = "0.4",
@@ -63,7 +66,9 @@ public static class SettingsManager
                 ["VS_ShowEva"] = "3",
                 ["VS_PerfectThreshold"] = "0.5",
                 ["VS_GreatThreshold"] = "1.0",
+                ["VS_TrueCount"] = "2",
 
+                ["VS_HaveTest"] = "1",
 
 
 
@@ -81,7 +86,8 @@ public static class SettingsManager
         string imageSet, float neutralProb,
         int breakTrials, float breakDuration,
         bool hasPractice, string practiceCsvFileName,
-        bool willShowHp, bool willShowRedScreen, bool willShowEva, float perfectThreshold, float greatThreshold
+        bool willShowHp, bool willShowRedScreen, bool willShowEva, float perfectThreshold, float greatThreshold, bool havePre,
+    bool havePost
     )
     {
         Dictionary<string, string> data = LoadAllSettings();
@@ -104,6 +110,8 @@ public static class SettingsManager
         data["Dot_ShowEva"] = willShowEva ? "1" : "0";
         data["Dot_PerfectThreshold"] = perfectThreshold.ToString();
         data["Dot_GreatThreshold"] = greatThreshold.ToString();
+        data["Dot_HavePre"] = havePre ? "1" : "0";
+        data["Dot_HavePost"] = havePost ? "1" : "0";
 
         SaveAllSettings(data);
     }
@@ -128,7 +136,6 @@ public static class SettingsManager
             GetFloat(data, "Dot_DoorCloseDelayMax", dotProbe.doorCloseDelayRange.y)
         );
         dotProbe.inputCsvFileName = GetString(data, "Dot_ImageSet", dotProbe.inputCsvFileName);
-        dotProbe.neutralSideProbability = GetFloat(data, "Dot_NeutralProb", dotProbe.neutralSideProbability);
         dotProbe.trialsPerBreak = GetInt(data, "Dot_BreakTrials", dotProbe.trialsPerBreak);
         dotProbe.breakDuration = GetFloat(data, "Dot_BreakDuration", dotProbe.breakDuration);
         dotProbe.hasPractice = GetInt(data, "Dot_HasPractice", dotProbe.hasPractice ? 1 : 0) == 1;
@@ -139,6 +146,11 @@ public static class SettingsManager
 
         dotProbe.perfectThreshold = GetFloat(data, "Dot_PerfectThreshold", dotProbe.perfectThreshold);
         dotProbe.greatThreshold = GetFloat(data, "Dot_GreatThreshold", dotProbe.greatThreshold);
+        dotProbe.havePre =
+    GetInt(data, "Dot_HavePre", dotProbe.havePre ? 1 : 0) == 1;
+
+        dotProbe.havePost =
+            GetInt(data, "Dot_HavePost", dotProbe.havePost ? 1 : 0) == 1;
 
     }
 
@@ -155,14 +167,16 @@ public static class SettingsManager
         data["VS_LoopCount"] = vs.loopCount.ToString();
 
         data["VS_HasPractice"] = vs.hasPractice ? "1" : "0";
-        data["VS_PracticeCsv"] = vs.practiceCsv;
-        data["VS_FormalCsv"] = vs.formalCsv;
+        data["VS_PracticeCsv"] = vs.practiceCsvFileName;
+        data["VS_FormalCsv"] = vs.inputCsvFileName;
 
         data["VS_BreakTrials"] = vs.trialsPerBreak.ToString();
         data["VS_BreakDuration"] = vs.breakDuration.ToString();
         data["VS_ShowEva"] = vs.willShowEva ? "1" : "0";
         data["VS_PerfectThreshold"] = vs.perfectThreshold.ToString();
         data["VS_GreatThreshold"] = vs.greatThreshold.ToString();
+        data["VS_TrueCount"] = vs.trueCount.ToString();
+        data["VS_HaveTest"] = vs.haveTest ? "1" : "0";
 
 
         SaveAllSettings(data);
@@ -187,14 +201,17 @@ public static class SettingsManager
 
         vs.hasPractice = GetInt(data, "VS_HasPractice", vs.hasPractice ? 1 : 0) == 1;
 
-        vs.practiceCsv = GetString(data, "VS_PracticeCsv", vs.practiceCsv);
-        vs.formalCsv = GetString(data, "VS_FormalCsv", vs.formalCsv);
+        vs.practiceCsvFileName = GetString(data, "VS_PracticeCsv", vs.practiceCsvFileName);
+        vs.inputCsvFileName = GetString(data, "VS_FormalCsv", vs.inputCsvFileName);
 
         vs.trialsPerBreak = GetInt(data, "VS_BreakTrials", vs.trialsPerBreak);
         vs.breakDuration = GetFloat(data, "VS_BreakDuration", vs.breakDuration);
         vs.willShowEva = GetInt(data, "VS_ShowEva", vs.willShowEva ? 1 : 0) == 1;
         vs.perfectThreshold = GetFloat(data, "VS_PerfectThreshold", vs.perfectThreshold);
         vs.greatThreshold = GetFloat(data, "VS_GreatThreshold", vs.greatThreshold);
+        vs.trueCount = GetInt(data, "VS_TrueCount", vs.trueCount);
+        vs.haveTest =
+    GetInt(data, "VS_HaveTest", vs.haveTest ? 1 : 0) == 1;
 
 
     }

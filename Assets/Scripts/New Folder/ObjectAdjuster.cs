@@ -221,7 +221,7 @@ public class ObjectAdjuster : MonoBehaviour
             grid.spacing = spacing;
         }
 
-        FirstPersonController.instance.gameObject.transform.position = FirstPersonController.instance.startPos.position;
+        //FirstPersonController.instance.gameObject.transform.position = FirstPersonController.instance.startPos.position;
         FirstPersonController.instance.BackToCenter();
         FirstPersonController.instance.HandleAutoAim();
     }

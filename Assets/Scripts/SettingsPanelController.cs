@@ -55,7 +55,11 @@ public class SettingsPanelController : MonoBehaviour
     public InputField vsPerfectThresholdInput;
     public InputField vsGreatThresholdInput;
     public Toggle vsEvaToggle;
+    public InputField vsTrueCountInput;
     public static SettingsPanelController instance;
+    public Toggle havePreToggle;
+    public Toggle haveTestToggle;
+    public Toggle havePostToggle;
     void Awake()
     {
         instance = this;
@@ -109,6 +113,8 @@ public class SettingsPanelController : MonoBehaviour
         dotShowHpToggle.isOn = GetInt("Dot_ShowHp", 1) == 1;
         dotShowRedScreenToggle.isOn = GetInt("Dot_ShowRedScreen", 1) == 1;
         dotShowEvaToggle.isOn = GetInt("Dot_ShowEva", 1) == 1;
+        havePreToggle.isOn = GetInt("Dot_HavePre", 1) == 1;
+        havePostToggle.isOn = GetInt("Dot_HavePost", 1) == 1;
 
         float neutralProb = GetFloat("Dot_NeutralProb", 0.5f);
         // DotProbe 阈值
@@ -125,6 +131,7 @@ public class SettingsPanelController : MonoBehaviour
         vsSelectionMaxInput.text = GetFloat("VS_SelectionMax", 3.5f).ToString();
 
         vsLoopCountInput.text = GetInt("VS_LoopCount", 1).ToString();
+        vsTrueCountInput.text = GetInt("VS_TrueCount", 1).ToString();
 
         vsHasPracticeToggle.isOn = GetInt("VS_HasPractice", 1) == 1;
 
@@ -137,6 +144,7 @@ public class SettingsPanelController : MonoBehaviour
         // VisualSearch 阈值
         vsPerfectThresholdInput.text = GetFloat("VS_PerfectThreshold", 0.5f).ToString();
         vsGreatThresholdInput.text = GetFloat("VS_GreatThreshold", 1.0f).ToString();
+        haveTestToggle.isOn = GetInt("VS_HaveTest", 1) == 1;
 
     }
 
@@ -163,6 +171,8 @@ public class SettingsPanelController : MonoBehaviour
         bool willShowEva = dotShowEvaToggle.isOn;
         float dotPerfectThreshold = ParseFloatSafe(dotPerfectThresholdInput.text, 0.3f);
         float dotGreatThreshold = ParseFloatSafe(dotGreatThresholdInput.text, 0.5f);
+        bool havePre = havePreToggle.isOn;
+bool havePost = havePostToggle.isOn;
 
         SettingsManager.SaveDotProbeSettings(
       floors,
@@ -180,7 +190,9 @@ public class SettingsPanelController : MonoBehaviour
       willShowRedScreen,
       willShowEva,
           dotPerfectThreshold,
-    dotGreatThreshold // 新增
+    dotGreatThreshold,
+     havePre,
+    havePost
   );
 
         // 保存 VisualSearch 设置
@@ -197,15 +209,16 @@ public class SettingsPanelController : MonoBehaviour
             intervalTimeRange = new Vector2(intervalMin, intervalMax),
             selectionTimeRange = new Vector2(selectionMin, selectionMax),
             loopCount = ParseIntSafe(vsLoopCountInput.text, 1),
+            trueCount = ParseIntSafe(vsTrueCountInput.text, 1),
 
             hasPractice = vsHasPracticeToggle.isOn,
-            practiceCsv = vsPracticeCsvInput.text,
-            formalCsv = vsFormalCsvInput.text,
+            practiceCsvFileName = vsPracticeCsvInput.text,
+            inputCsvFileName = vsFormalCsvInput.text,
 
             trialsPerBreak = ParseIntSafe(vsBreakTrialsInput.text, 20),
             breakDuration = ParseFloatSafe(vsBreakDurationInput.text, 3f),
             willShowEva = vsEvaToggle.isOn,
-
+            haveTest = haveTestToggle.isOn,
 
         };
         dummyVS.perfectThreshold = vsPerfectThreshold;

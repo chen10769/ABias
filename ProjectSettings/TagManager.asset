@@ -7,6 +7,8 @@ TagManager:
   - Interact
   - Enemy
   - detect
+  - Laser
+  - Evidence
   layers:
   - Default
   - TransparentFX
@@ -16,8 +18,8 @@ TagManager:
   - UI
   - bb
   - image
-  - 
-  - 
+  - Evidence
+  - wpn
   - 
   - 
   - 

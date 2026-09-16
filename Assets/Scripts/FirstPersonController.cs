@@ -1,7 +1,9 @@
 using System.IO;
+using Fungus;
 using JetBrains.Annotations;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(CharacterController))]
@@ -51,12 +53,18 @@ public class FirstPersonController : MonoBehaviour
     private Vector3 lastPosition;
     public float currentSpeed;
     public Animator gunAnimator;
-     public GameObject adjustment;
+    public GameObject adjustment;
     bool isDebugMode;
+    public bool canControll = false;
+
+
+    [SerializeField] private string targetTag = "Evidence"; // 要检测的标签
+    private GameObject lastHitObject = null; // 记录上一次击中的物体
+
     void Awake()
     {
         instance = this;
-        if (PersistentObject.instance != null&&PersistentObject.instance.isSettingMode)
+        if (PersistentObject.instance != null && PersistentObject.instance.isSettingMode)
         {
             EnterSettingMode();
         }
@@ -81,7 +89,7 @@ public class FirstPersonController : MonoBehaviour
         currentAimTarget = centerTarget;
         if (PersistentObject.instance != null && !PersistentObject.instance.isSettingMode)
             LockCursor();
-         string stateFilePath = Path.Combine(Application.dataPath, "../debugState.txt");
+        string stateFilePath = Path.Combine(Application.dataPath, "../debugState.txt");
 
         // 读取状态
         if (File.Exists(stateFilePath))
@@ -93,18 +101,25 @@ public class FirstPersonController : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Escape)&&isDebugMode)
+        if (Input.GetKeyDown(KeyCode.Escape) && isDebugMode)
         {
-          
             UIManager.instance.pausePanel.SetActive(!UIManager.instance.pausePanel.activeInHierarchy);
+            // GameObject dialog = GameObject.Find("SayDialog");
+            // if (dialog != null)
+            // {
+            //      dialog.GetComponent<DialogInput>().enabled = !UIManager.instance.pausePanel.activeInHierarchy;
+            // }
+            
+           
         }
-        if (UIManager.instance.isUI)
-                return;
-        if (PersistentObject.instance != null&&PersistentObject.instance.isSettingMode)
+        CheckCursorInput();
+        if (UIManager.instance.isUI || canControll == false)
+            return;
+        if (PersistentObject.instance != null && PersistentObject.instance.isSettingMode)
             return;
 
         HandleGroundCheck();
-
+        //MouseRaycast();
         if (autoAim)
         {
             HandleAutoAimInput();
@@ -120,16 +135,20 @@ public class FirstPersonController : MonoBehaviour
             }
         }
 
-        CheckCursorInput();
+        
         CalculateSpeed();
         UpdateSpeedDisplay();
 
-        if (Input.GetMouseButtonDown(0))
+
+       
+        if (Input.GetKeyDown(KeyCode.Tab))
         {
-            //Shoot();
+            ItemGet.instance.ShowEvidenceList();
+            UnlockCursor();
+
         }
     }
-
+    
     void HandleAutoAimInput()
     {
         if (DotProbeTask.instance.isDoorOpen == false)
@@ -149,21 +168,25 @@ public class FirstPersonController : MonoBehaviour
         {
             //currentAimTarget = centerTarget;
         }
-       
-              
+
+
     }
     public void BackToCenter()
     {
         currentAimTarget = centerTarget;
+    }
+    public void SetCanControll(bool flag)
+    {
+        canControll = flag;
     }
 
     public void HandleAutoAim()
     {
         if (currentAimTarget != null)
         {
-           
+
             // 计算水平旋转
-                Vector3 dir = (currentAimTarget.position - transform.position).normalized;
+            Vector3 dir = (currentAimTarget.position - transform.position).normalized;
             Quaternion lookRot = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z));
             transform.rotation = Quaternion.Lerp(transform.rotation, lookRot, Time.deltaTime * aimSpeed);
 
@@ -171,11 +194,11 @@ public class FirstPersonController : MonoBehaviour
             Vector3 camDir = (currentAimTarget.position - playerCamera.transform.position).normalized;
             Quaternion camRot = Quaternion.LookRotation(camDir);
             playerCamera.transform.rotation = Quaternion.Lerp(playerCamera.transform.rotation, camRot, Time.deltaTime * aimSpeed);
-             if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.J))
-        {
-           Shoot();
-        }
-            
+            if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.J))
+            {
+                Shoot();
+            }
+
         }
     }
 
@@ -188,7 +211,7 @@ public class FirstPersonController : MonoBehaviour
         Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
         if (Physics.Raycast(ray, out RaycastHit hit, 10000f))
         {
-            if (hit.collider.CompareTag("Enemy") && !DotProbeTask.instance.guardIsDead)
+            if (hit.collider.CompareTag("Enemy") && !DotProbeTask.instance.guardController.isDead)
             {
                 hit.collider.gameObject.GetComponent<Animator>().SetTrigger("dead");
                 UIManager.instance.crossHairAni.SetTrigger("red");
@@ -260,33 +283,50 @@ public class FirstPersonController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
-            canRotate = !canRotate;
-            if (canRotate) LockCursor();
-            else UnlockCursor();
+            // canRotate = !canRotate;
+            // if (canRotate) LockCursor();
+            // else UnlockCursor();
+            UnlockCursor();
         }
-
-        if ((Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1)) && !canRotate)
+        else if (Input.anyKeyDown)
         {
-            
-            canRotate = true;
+
             LockCursor();
+        }
+         if (Input.GetMouseButtonDown(0))
+        {
+            if (IsPointerOverUI())
+            {
+                UnlockCursor();
+            }
+            else
+            {
+                LockCursor();
+            }
+            
         }
     }
 
     public void LockCursor()
     {
-        Debug.Log(UIManager.instance.isUI);
         if (!UIManager.instance.isUI)
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+            canRotate = true;
         }
-        
-    }
 
+    }
+   
     public void UnlockCursor()
     {
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+        canRotate = false;
+    }
+    bool IsPointerOverUI()
+    {
+        // EventSystem.current.IsPointerOverGameObject() 检查当前指针是否在 UI 上
+        return EventSystem.current.IsPointerOverGameObject();
     }
 }

@@ -19,7 +19,7 @@ public class AutoDoor : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
-        if (other.tag == "Player" && DotProbeTask.instance.isExperimentDone && DotProbeTask.instance.isDoorOpen == false)
+        if (other.tag == "Player" &&DotProbeTask.instance.isDoorOpen == false)
         {
             DotProbeTask.instance.isDoorOpen = true;
              door.SetTrigger("Open");
@@ -28,7 +28,7 @@ public class AutoDoor : MonoBehaviour
     }
      void OnTriggerExit(Collider other)
     {
-        if (other.tag == "Player" && DotProbeTask.instance.isExperimentDone && DotProbeTask.instance.isDoorOpen)
+        if (other.tag == "Player" && DotProbeTask.instance.isDoorOpen)
         {
             DotProbeTask.instance.isDoorOpen = false;
             door.SetTrigger("Close");

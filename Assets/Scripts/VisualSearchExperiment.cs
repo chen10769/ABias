@@ -5,17 +5,14 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Linq;
 using System.Text;
+using Fungus;
 
-public class VisualSearchExperiment : MonoBehaviour
+public class VisualSearchExperiment : BaseExperiment
 {
-    [Header("加载设置")]
-    public GameObject loadingPanel;
-    public Slider progressBar;
-    public Text progressText;
-    public bool isLoadingComplete = false;
+
 
     [Header("UI References")]
-    public Button startButton;
+
     public Image[] imageDisplays; // 0左上 1右上 2左下 3右下
     public GameObject imagePanel;
     public Text countdownText;
@@ -25,44 +22,22 @@ public class VisualSearchExperiment : MonoBehaviour
     public Vector2 selectionTimeRange = new Vector2(2.5f, 3.5f);
     private float currentIntervalTime;
     private float currentSelectionTime;
-    [Header("CSV Settings")]
-    public string practiceCsv = "VisualSearch_Practice.csv";
-    public string formalCsv = "VisualSearch_Formal.csv";
+
     public int loopCount = 1;
-
-    [Header("练习阶段设置")]
-    public bool hasPractice = true;
-    public float practicePassRate = 0.5f;
+        public bool haveTest=true;
 
 
-
-    [Header("休息设置")]
-    public int trialsPerBreak = 1;
-    public float breakDuration = 3f;
-
-
-
-    [Header("评价设置")]
-    public float perfectThreshold = 0.5f;
-    public float greatThreshold = 1.0f;
-    // public float goodThreshold = 1.5f;
-    // public float badThreshold = 2.5f;
-    public Text evaluationText;
-    public Animator evaluationAni;
 
     private class TrialData
     {
         public int trialIndex;
-        // —— 用于加载图片（已去掉前缀）——
         public string lt, rt, lb, rb;
-
-        // —— 用于导出 CSV（保留原始前缀）——
         public string ltRaw, rtRaw, lbRaw, rbRaw;
         public string type1, type2, type3;
         public int correctIndex;
 
         public double reactionTime;
-        public int actualResponse;
+        public string actualResponse;
         public bool isCorrect;
     }
 
@@ -70,11 +45,9 @@ public class VisualSearchExperiment : MonoBehaviour
     private List<TrialData> experimentData = new List<TrialData>();
     private Dictionary<string, Sprite> imageCache = new Dictionary<string, Sprite>();
 
-    private bool isExperimentRunning = false;
-    private bool isPracticePhase = false;
+
     private bool isSelectionActive = false;
-    private bool practiceFinished = false;
-    private bool practicePassed = false;
+
 
     private int currentTrial = 0;
     private float selectionStartTime;
@@ -82,37 +55,109 @@ public class VisualSearchExperiment : MonoBehaviour
 
     public GameObject tip0;
     public GameObject tip;
-    string fileName;
+    public static VisualSearchExperiment instance;
 
+    public int totalCount = 5;  
+    public int trueCount = 2;    
+    public int curCount = 0;    
+    private List<bool> resultPool;
+    private bool initialized = false;
+
+    void Awake()
+    {
+        instance = this;
+    }
     void Start()
     {
         SettingsManager.LoadVisualSearchSettings(this);
-
-        //HideAllImages();
         countdownText.gameObject.SetActive(false);
     }
-    public void ShowTip()
+    public void ToStart()
     {
-        if (GameState.instance.gameStateName == GameStateName.beforeV1 || GameState.instance.gameStateName == GameStateName.beforeV2)
-        { tip0.SetActive(true); }
-    }
-    void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Space) && !isExperimentRunning && tip0.activeInHierarchy)
+        tip.SetActive(false);
+        if (!hasPractice || (hasPractice && hadDoPractice))
         {
-            tip.SetActive(true);
-            tip0.SetActive(false);
+            StartExperiment(false);
         }
         else
         {
-            if (Input.GetKeyDown(KeyCode.Space) && !isExperimentRunning && tip.activeInHierarchy)
-            {
-                StartExperiment(hasPractice);
-            }
-
+            StartExperiment(true);
         }
 
-        if (practiceFinished && Input.GetKeyDown(KeyCode.Space))
+    }
+    public void ShowTip()
+    {
+        if (PersistentObject.instance != null && PersistentObject.instance.isSettingMode)
+            return;
+        if (haveTest)
+        {
+             SmokeAppear();
+        }
+        //tip.SetActive(true);
+           
+    }
+    public void SmokeAppear()
+    {
+        if (GameState.instance.gameStateName != GameStateName.D2)
+        {
+            UIManager.instance.EvidenceListPanel.SetActive(false);
+            RuntimeDialogueLoader.instance.LoadAndExecuteDialogue("提示语/VisualSearchExperiment", "VisualSearchExperimentTip");
+            //curCount++;
+        }
+    }
+    protected override void PrepareExperiment()
+    {
+        HideAllImages();
+        fileName = isPracticePhase ? practiceCsvFileName : inputCsvFileName;
+        bool ok = LoadCsv();
+        if (!ok)
+        {
+            Debug.LogWarning("无法读取输入 CSV，请检查输入文件或模板。");
+            return;
+        }
+        StartCoroutine(LoadExperiment());
+        tip.SetActive(false);
+      
+        trialSequence.Clear();
+        experimentData.Clear();
+        LoadCsv();
+    }
+
+    protected override void OnExperimentStart()
+    {
+        imagePanel.SetActive(true);
+        StartCoroutine(RunExperiment());
+    }
+
+    void Update()
+    {
+          if (isExperimentRunning)
+        {
+             if (Input.GetKeyDown(KeyCode.E))
+            {
+                OnImageSelected(0);
+            }
+            else if (Input.GetKeyDown(KeyCode.O))
+            {
+                OnImageSelected(1);
+            }
+            else if (Input.GetKeyDown(KeyCode.F))
+            {
+                OnImageSelected(2);
+            }
+            else if (Input.GetKeyDown(KeyCode.J))
+            {
+                OnImageSelected(3);
+            }
+        }
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            if (tip.activeInHierarchy)
+            {
+                ToStart();
+            }
+        }
+        if (practiceFinished && Input.GetKeyDown(KeyCode.Space) && UIManager.instance.practiceResultPanel.activeInHierarchy)
         {
             UIManager.instance.practiceResultPanel.SetActive(false);
             practiceFinished = false;
@@ -132,168 +177,94 @@ public class VisualSearchExperiment : MonoBehaviour
                 RecordSelection(-1);
             }
         }
+      
+       
+        
     }
 
-    public void StartExperiment(bool practice)
-    {
-        if (isExperimentRunning) return;
-        HideAllImages();
-        isPracticePhase = practice;
-        fileName = practice ? practiceCsv : formalCsv;
-        StartCoroutine(LoadExperiment(fileName));
-        tip.SetActive(false);
-        FirstPersonController.instance.UnlockCursor();
-    }
 
-    IEnumerator LoadExperiment(string csvName)
+
+    IEnumerator LoadExperiment()
     {
         isExperimentRunning = true;
         trialSequence.Clear();
         experimentData.Clear();
-
-        LoadCsv(csvName);
         if (isExperimentRunning == false)
         {
             yield break;
         }
-        loadingPanel.SetActive(true);
-        yield return StartCoroutine(LoadImagesAsync());
-        loadingPanel.SetActive(false);
-
-        // ⭐ 打乱试次顺序（在正式开始前）
-        ShuffleTrials(trialSequence);
 
         imagePanel.SetActive(true);
         currentTrial = 0;
-
-        yield return StartCoroutine(RunExperiment());
     }
 
-    void LoadCsv(string csvName)
+    protected bool LoadCsv()
     {
-        string path = Path.Combine(Application.dataPath, "../input", csvName + ".csv");
+        string csvPath = Path.Combine(Application.dataPath, "../input", fileName + ".csv");
 
-        try
-        {
-            var lines = File.ReadAllLines(path, Encoding.UTF8).Skip(1);
-
-            foreach (var line in lines)
+        return LoadCsvCommon(
+            csvPath,
+            Encoding.UTF8,
+            skipHeader: true,
+            enableLoop: true,
+            loopCount: loopCount,
+            shuffleOnce: true,
+            shuffleEachLoop: true,
+            parseRow: cols =>
             {
-                var c = line.Split(',');
+                if (cols.Count < 8) return null;
 
-                TrialData t = new TrialData
+                return new TrialData
                 {
-                    ltRaw = c[0],
-                    rtRaw = c[1],
-                    lbRaw = c[2],
-                    rbRaw = c[3],
+                    ltRaw = cols[0],
+                    rtRaw = cols[1],
+                    lbRaw = cols[2],
+                    rbRaw = cols[3],
 
-                    lt = CleanPath(c[0]),
-                    rt = CleanPath(c[1]),
-                    lb = CleanPath(c[2]),
-                    rb = CleanPath(c[3]),
+                    lt = RemoveFirstParenthesesContent(cols[0]),
+                    rt = RemoveFirstParenthesesContent(cols[1]),
+                    lb = RemoveFirstParenthesesContent(cols[2]),
+                    rb = RemoveFirstParenthesesContent(cols[3]),
 
-                    type1 = c[4],
-                    type2 = c[5],
-                    type3 = c[6],
-                    correctIndex = int.Parse(c[7])
+                    type1 = cols[4],
+                    type2 = cols[5],
+                    type3 = cols[6],
+                    correctIndex = int.Parse(cols[7])
                 };
-
-                trialSequence.Add(t);
-            }
-
-            // ⭐ 只有正式实验才循环表格
-            if (!isPracticePhase)
-            {
-                var origin = new List<TrialData>(trialSequence);
-                for (int i = 1; i < loopCount; i++)
-                    trialSequence.AddRange(origin);
-            }
-        }
-        catch (IOException e)
-        {
-            bool isSharingViolation = false;
-
-            // Windows 下：32 = ERROR_SHARING_VIOLATION, 33 = ERROR_LOCK_VIOLATION
-            int hResult = e.HResult & 0xFFFF;
-            if (hResult == 32 || hResult == 33)
-            {
-                isSharingViolation = true;
-            }
-
-            if (isSharingViolation)
-            {
-                Debug.LogError("表格被占用，请关闭 Excel / WPS 后重试！");
-                TipManager.instance.ToShowTip("表格被占用，请关闭 Excel / WPS 后重试！");
-            }
-            else
-            {
-                Debug.LogError("读取表格失败（非占用错误）");
-                Debug.LogError(e);
-                TipManager.instance.ToShowTip("读取表格失败，请检查文件是否损坏或路径是否正确");
-            }
-
-            // 防止实验继续跑
-            isExperimentRunning = false;
-            return;
-        }
-
+            },
+            out trialSequence
+        );
     }
 
 
-    string CleanPath(string raw)
-    {
-        int idx = raw.IndexOf(')');
-        return idx >= 0 ? raw.Substring(idx + 1) : raw;
-    }
 
-    IEnumerator LoadImagesAsync()
-    {
-        imageCache.Clear();
 
+    protected override IEnumerator LoadImagesAsync()
+    {
         var paths = trialSequence
             .SelectMany(t => new[] { t.lt, t.rt, t.lb, t.rb })
+            .Where(p => !string.IsNullOrEmpty(p))
             .Distinct();
 
-        int loaded = 0;
-        int total = paths.Count();
-
-        foreach (var p in paths)
-        {
-            string full = Path.Combine(Application.streamingAssetsPath, "TestImg", p);
-            imageCache[p] = LoadSpriteFromFile(full);
-
-            loaded++;
-            float progress = (float)loaded / total;
-            progressBar.value = progress;
-            progressText.text = $"{(int)(progress * 100)}%";
-            yield return null;
-        }
-
-        isLoadingComplete = true;
+        yield return StartCoroutine(LoadImagesAsyncCommon(paths,
+            onLoadSprite: (relPath, sp) => imageCache[relPath] = sp
+        ));
     }
-
-    Sprite LoadSpriteFromFile(string filePath)
+     protected override bool CheckPracticePassed()
     {
-        byte[] data = File.ReadAllBytes(filePath);
-        Texture2D tex = new Texture2D(2, 2);
-        tex.LoadImage(data);
-        return Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), Vector2.zero);
+        float correctRate = experimentData.Count > 0
+            ? experimentData.Count(d => d.isCorrect) / (float)experimentData.Count
+            : 0f;
+        return correctRate >= 0.9f;
     }
-    void ShuffleTrials(List<TrialData> list)
-    {
-        for (int i = list.Count - 1; i > 0; i--)
-        {
-            int j = Random.Range(0, i + 1);
-            var temp = list[i];
-            list[i] = list[j];
-            list[j] = temp;
-        }
-    }
+
+
 
 
     IEnumerator RunExperiment()
     {
+        Debug.Log("RunExperiment");
+        LockCursor();
         for (int i = 0; i < trialSequence.Count; i++)
         {
             if (i > 0 && trialsPerBreak > 0 && i % trialsPerBreak == 0)
@@ -313,28 +284,61 @@ public class VisualSearchExperiment : MonoBehaviour
 
         EndExperiment();
     }
-
-    IEnumerator StartBreak()
+    protected override IEnumerator StartBreak()
     {
-        UIManager.instance.breakPanel.SetActive(true);
+        imagePanel.SetActive(false);
+        DialogManager.instance?.ShowDialog("冷静");
         float timer = breakDuration;
 
         while (timer > 0)
         {
-            UIManager.instance.breakText.text = $"休息剩余 {Mathf.CeilToInt(timer)} 秒";
             timer -= Time.deltaTime;
             yield return null;
         }
-
         UIManager.instance.breakText.text = "按<color=red> 空格 </color>继续";
-        while (!Input.GetKeyDown(KeyCode.Space))
+        if (GameState.instance.gameStateName != GameStateName.D2)
+        {
+            UIManager.instance.EvidenceListPanel.SetActive(false);
+            RuntimeDialogueLoader.instance.LoadAndExecuteDialogue("提示语/VisualSearchExperiment", "VisualSearchExperimentTip2");
+
+        }
+        // 等待 breakPanel 被激活
+        while (!UIManager.instance.breakPanel.activeInHierarchy)
             yield return null;
+        // 等待玩家按空格继续
+        while (UIManager.instance.breakPanel.activeInHierarchy)
+        {
+            if (Input.GetKeyDown(KeyCode.Space))
+                break;
+
+            yield return null;
+        }
 
         UIManager.instance.breakPanel.SetActive(false);
+        imagePanel.SetActive(true);
     }
+    public void LockCursor()
+    {
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+
+
+
+    }
+    public void UnlockCursor()
+    {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+    }
+
+
 
     void SetupTrialImages(TrialData t)
     {
+        
+        //UnlockCursor();
         imageDisplays[0].sprite = imageCache[t.lt];
         imageDisplays[1].sprite = imageCache[t.rt];
         imageDisplays[2].sprite = imageCache[t.lb];
@@ -359,6 +363,7 @@ public class VisualSearchExperiment : MonoBehaviour
         if (!isSelectionActive) return;
         if (PersistentObject.instance.isSettingMode) return;
         RecordSelection(index);
+        LockCursor();
     }
 
     void RecordSelection(int index)
@@ -367,68 +372,58 @@ public class VisualSearchExperiment : MonoBehaviour
         countdownText.gameObject.SetActive(false);
         UIManager.instance.crossHairAni.gameObject.SetActive(true);
 
-        TrialData t = trialSequence[currentTrial - 1];
-        t.trialIndex = currentTrial;
-        t.actualResponse = index + 1;
-        t.reactionTime = index < 0 ? -1 : Time.time - selectionStartTime;
-        t.isCorrect = t.actualResponse == t.correctIndex;
+        TrialData src = trialSequence[currentTrial - 1];
 
-        experimentData.Add(t);
+        TrialData result = new TrialData
+        {
+            trialIndex = currentTrial,
+
+            ltRaw = src.ltRaw,
+            rtRaw = src.rtRaw,
+            lbRaw = src.lbRaw,
+            rbRaw = src.rbRaw,
+
+            lt = src.lt,
+            rt = src.rt,
+            lb = src.lb,
+            rb = src.rb,
+
+            type1 = src.type1,
+            type2 = src.type2,
+            type3 = src.type3,
+            correctIndex = src.correctIndex,
+
+            actualResponse = (index + 1).ToString(),
+            reactionTime = index < 0 ? -1 : Time.time - selectionStartTime,
+            isCorrect = index + 1 == src.correctIndex
+        };
+
+        experimentData.Add(result);
         HideAllImages();
         if (willShowEva == false && !isPracticePhase)
         {
             return;
         }
-        evaluationText.text = GetEvaluation(t.reactionTime);
-
-
-
-
-    }
-
-    string GetEvaluation(double reactionTime)
-    {
-
-        evaluationAni.SetTrigger("play");
-
-        if (trialSequence[currentTrial - 1].isCorrect)
+        if (string.IsNullOrEmpty(result.actualResponse))
         {
-            if (reactionTime <= perfectThreshold)
-            {
-                evaluationText.color = new Color(1f, 0.92f, 0.16f);
-                return "Perfect";
-            }
-            else if (reactionTime <= greatThreshold)
-            {
-                evaluationText.color = new Color(1f, 0.5f, 0f);
-                return "Great";
-            }
-            else
-            {
-                evaluationText.color = Color.green;
-                return "Good";
-            }
-            // else if (reactionTime <= badThreshold)
-            // {
-            //     evaluationText.color = Color.blue;
-            //     return "Bad";
-            // }
-            // else
-            // {
-            //     evaluationText.color = Color.red;
-            //     return "Poor";
-            // }
+            result.actualResponse = "超时";
+            result.reactionTime = -1;
+            result.isCorrect = false;
+            evaluationText.color = Color.red;
+            combo = 0;
+            ShowEvaluation("超时");
+            reactionMultiplier = 0f;
         }
         else
         {
-            evaluationText.color = Color.red;
-            return "Error";
+             string evaluation = GetEvaluation(result.reactionTime, result.isCorrect);
+            evaluationText.text = evaluation;
+            ShowEvaluation(evaluation);
         }
-
-
-
-
+        
     }
+
+
 
     void HideAllImages()
     {
@@ -436,69 +431,66 @@ public class VisualSearchExperiment : MonoBehaviour
             img.gameObject.SetActive(false);
     }
 
-    void EndExperiment()
+    protected override void AfterExperiment()
     {
-        isExperimentRunning = false;
         imagePanel.SetActive(false);
-        DisplayResults();
-        if (isPracticePhase && hasPractice)
-        {
-            float acc = 100f * experimentData.Count(d => d.isCorrect) / (float)experimentData.Count;
-
-            practicePassed = acc >= practicePassRate;
-            practiceFinished = true;
-
-            UIManager.instance.practiceResultPanel.SetActive(true);
-            UIManager.instance.practiceResultText.text = practicePassed
-                ? "按<color=red> 空格 </color>键进入正式实验"
-                : $"练习未通过（正确率 {(acc):F1}%）\n请按<color=red> 空格 </color>键重新开始练习";
-        }
-        else
-        {
-            Invoke("MissonComplete", 1f);
-        }
-    }
-    public void MissonComplete()
-    {
-        UIManager.instance.companel.SetActive(true);
-        FirstPersonController.instance.UnlockCursor();
-        //TipManager.instance.ToShowTip("请前往办公室");
+        DialogManager.instance?.ShowDialog("冷静");
+        //Invoke(nameof(SmokeAppear), breakDuration);
     }
 
-    void DisplayResults()
+
+
+    protected override void GetResults()
     {
-        float acc = 100f * experimentData.Count(d => d.isCorrect) / (float)experimentData.Count;
+        GetResultsCommon(
+            experimentData,
+            "左上图,右上图,左下图,右下图,性别,图片,情绪面孔位置,正确面孔位置",
+            d => $"{d.ltRaw},{d.rtRaw},{d.lbRaw},{d.rbRaw},{d.type1},{d.type2},{d.type3},{d.correctIndex}",
+            d => $"{d.reactionTime:F15},{d.actualResponse},{(d.isCorrect ? 1 : 0)}",
+            d => d.isCorrect,
+            "VisualSearch",
+            Encoding.UTF8
+        );
+    }
 
-        List<string> csv = new List<string>();
-        csv.Add("左上图,右上图,左下图,右下图,性别,图片,情绪面孔位置,正确面孔位置,反应时间,实际反应,正确与否,总体正确率,学号,电话号码,组别");
+    protected override void AfterPratice()
+    {
 
-        for (int i = 0; i < experimentData.Count; i++)
+    }
+
+    private void Init()
+    {
+        resultPool = new List<bool>();
+
+        for (int i = 0; i < trueCount; i++)
+            resultPool.Add(true);
+
+        for (int i = 0; i < totalCount - trueCount; i++)
+            resultPool.Add(false);
+
+        initialized = true;
+    }
+
+
+    public bool Trigger()
+    {
+        if (!initialized)
+            Init();
+
+        if (resultPool.Count == 0)
         {
-            var d = experimentData[i];
-
-            // ⭐ 只在第一行写被试信息
-            string accStr = i == 0 ? acc.ToString("F1") + "%" : "";
-            string idStr = i == 0 ? PersistentObject.instance.studentId : "";
-            string phoneStr = i == 0 ? PersistentObject.instance.phoneNumber : "";
-            string groupStr = i == 0 ? PersistentObject.instance.group : "";
-
-            csv.Add(
-                $"{d.ltRaw},{d.rtRaw},{d.lbRaw},{d.rbRaw}," +
-                $"{d.type1},{d.type2},{d.type3},{d.correctIndex}," +
-                $"{d.reactionTime:F15},{d.actualResponse},{(d.isCorrect ? 1 : 0)}," +
-                $"{accStr},=\"{idStr}\",=\"{phoneStr}\",=\"{groupStr}\""
-            );
+            return false;
         }
 
-        SaveCsvFile(csv);
+        int index = Random.Range(0, resultPool.Count);
+        bool result = resultPool[index];
+        resultPool.RemoveAt(index);
+
+        return result;
     }
 
-    void SaveCsvFile(List<string> csvLines)
-    {
-        string folder = Path.Combine(Application.dataPath, "../ExperimentResults");
-        Directory.CreateDirectory(folder);
-        string file = Path.Combine(folder, $"{PersistentObject.instance.studentId}_{PersistentObject.instance.phoneNumber}_{PersistentObject.instance.group}_{fileName}_VisualSearch.csv");
 
-        File.WriteAllLines(file, csvLines, Encoding.UTF8);
-    }
+
+
+
 }

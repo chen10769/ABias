@@ -17,17 +17,18 @@ public class Interactable : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (canInteract)
-        {
-            interactEvent.Invoke();
-            canInteract = false;
-        }
+        // if (canInteract)
+        // {
+        //     interactEvent.Invoke();
+        //     canInteract = false;
+        // }
     }
     void OnTriggerEnter(Collider other)
     {
         if (other.tag == "Player")
         {
             canInteract = true;
+            interactEvent.Invoke();
         }
     }
     void OnTriggerExit(Collider other)

@@ -15,8 +15,11 @@ public class UIManager : MonoBehaviour
     public GameObject companel;
      public GameObject breakPanel; // 休息面板（包含倒计时文本）
      public GameObject practiceResultPanel;        // 显示练习结果的面板
+     public GameObject EvidenceListPanel;        
      public Text practiceResultText;               // 面板上的提示文字
      public Text breakText;
+    public GameObject Investigate;
+    public Text scoreText;
    
    
     void Awake()
